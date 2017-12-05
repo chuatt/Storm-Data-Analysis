@@ -1,0 +1,142 @@
+---
+title: "Storm Data Analysis"
+subtitle: Done by chuatt
+date: "3 Dec 2017"
+output: 
+  html_document:
+    keep_md: true
+    highlight: tango
+    theme: yeti
+---
+
+**Rpub Link:** [Click Here](http://rpubs.com/chuatt/337663)
+
+## Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+Data Analysis shows that Tornado is the worst type of event that would cause the most harm with respect to population health. Tornado has also caused the worst economic consequences. 
+
+```{r Data Transformaion ,echo=TRUE}
+
+# Download file
+setwd('C:/Users/TAT/Desktop/Coursera/Lectures/5) Reproducible Research/')
+
+if(!dir.exists("Assignment 2")) {dir.create("Assignment 2")}
+if(!file.exists("StormData.csv.bz2")){
+    fileURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+    download.file(fileURL, destfile = "./Assignment 2/StormData.csv.bz2", method = "auto")
+}
+
+# Read file into R
+storm <- read.csv("./Assignment 2/StormData.csv.bz2", header = T, sep = ",")
+
+```
+
+## Data Processing
+
+Check summary of data and number of NA for each variable. Variables with >80% NA are removed from the dataset.
+```{r PreProcessing ,echo=TRUE}
+# Check summary
+summary(storm)
+
+# See number of NA for each variable
+sapply(storm, function(x) sum(is.na(x)))
+
+
+```
+
+Variables with >80% NA are removed from the dataset. And removed NA rows.
+```{r DataProcessing ,echo=TRUE}
+
+# Remove variables with >80% NA
+library(dplyr)
+storm2 <- select(storm, -c(COUNTYENDN, F))
+
+# Remove NA rows
+storm2 <- na.omit(storm2)
+
+# Variable class cleaning
+library(lubridate)
+storm2$BGN_DATE <- mdy_hms(storm2$BGN_DATE)
+storm2$END_DATE <- mdy_hms(storm2$END_DATE)
+storm2$STATE__ <- as.factor(storm2$STATE__)
+storm2$COUNTY <- as.factor(storm2$COUNTY)
+storm2$REFNUM <- as.factor(storm2$REFNUM)
+
+# Check summary
+summary(storm2)
+str(storm2)
+
+
+```
+
+
+## Results
+
+Question 1: Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+```{r Qns1 ,echo=TRUE}
+
+library(ggplot2)
+
+# Plot Number of Fatalities by EVTYPE
+table1 <- summarise(group_by(storm2,EVTYPE),Total_death=sum(FATALITIES))
+table1 <- arrange(table1,desc(Total_death))[1:10,]
+plot1 <- ggplot(table1, aes(x=reorder(EVTYPE,Total_death), y=Total_death, fill=Total_death)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_gradient2(low='red', mid='snow3', high='red', space='Lab') +
+  labs(title="Top 10 Event by Number of Fatalities", y="Number of Fatalities", x="Event") +
+  coord_flip()
+plot1
+
+# Plot Number of Injuries by EVTYPE
+table2 <- summarise(group_by(storm2,EVTYPE),Total_injuries=sum(INJURIES))
+table2 <- arrange(table2,desc(Total_injuries))[1:10,]
+plot2 <- ggplot(table2,aes(x=reorder(EVTYPE,Total_injuries), y=Total_injuries, fill=Total_injuries)) + 
+  geom_bar(stat="identity") +  
+  scale_fill_gradient2(low='red', mid='snow3', high='purple', space='Lab') +
+  labs(title="Top 10 Event by Number of Injuries", y="Number of Injuries", x="Event") +
+  coord_flip()
+plot2
+
+# Show both death & injuries tables
+library(formattable)
+table1 <- mutate(table1, Percentage=percent(Total_death/sum(Total_death)))
+table1
+
+table2 <- mutate(table2, Percentage=percent(Total_injuries/sum(Total_injuries)))
+table2
+
+```
+
+**Comment:** Based on the data above, we can see **Tornado** is most harmful with respect to population health. Tornado caused the highest total death **(46.63%)** and highest injuries **(72.76%)**.
+
+
+
+Question 2: Across the United States, which types of events have the greatest economic consequences?
+
+```{r Qns2 ,echo=TRUE}
+# Plot Number of Property Damage by EVTYPE
+table3 <- summarise(group_by(storm2, EVTYPE), Total_PropDmg=sum(PROPDMG))
+table3 <- arrange(table3,desc(Total_PropDmg))[1:10,]
+
+plot3 <- ggplot(table3, aes(x=reorder(EVTYPE,Total_PropDmg), y=Total_PropDmg, fill=Total_PropDmg)) + 
+  geom_bar(stat="identity") + 
+  scale_fill_gradient2(low='red', mid='snow3', high='dark green', space='Lab') + 
+  labs(title="Top 10 Event by Number of Property Damage", y="Number of Property Damage", x="Event") +
+  coord_flip()
+plot3
+
+# Show property damage table
+table3 <- mutate(table3, Percentage=percent(Total_PropDmg/sum(Total_PropDmg)))
+table3
+
+```
+
+
+**Comment:** The Top 10 EVTYPE by Number of Property Damage shows that **Tornado** is the worst type of event which accounted for 32.31% of total Property Damaged.
+
+
